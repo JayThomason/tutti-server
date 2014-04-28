@@ -26,7 +26,7 @@ router.get("/createJam", function (request, response) {
     return;
   }
 
-  if (!= null && name.indexOf(" ") > -1) {
+  if (name != null && name.indexOf(" ") > -1) {
     write_response(response, 400, "BAD REQUEST: name connot contain spaces\n");
     console.log("bad request: bad name");
     return;
