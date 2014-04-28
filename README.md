@@ -14,13 +14,14 @@ API
 There are only two methods in the API at this point, discoverJams and createJam.
 
 #### GET /createJam?private={privateIpAddr}
-Should only be called by the master phone when it is creating a new jam. privateIpAddr should be the private ip address of the master phone on the local wifi network. Creates a mapping between the master phone's public and private ip addresses.
+#### GET /createJam?private={privateIpAddr}&name={name}
+Should only be called by the master phone when it is creating a new jam. privateIpAddr should be the private ip address of the master phone on the local wifi network. Creates a mapping between the master phone's public and private ip addresses. name is an optional parameter which represents a display name for the jam. The name may not contain a space. If no name is provided then the default name of Jam-{private_ip} is used.
 
-Returns 200 on success and 400 on database or server error.
+Returns 200 on success and 500 on database or server error, or 400 if the name provided contains a space.
 
 Note that right now there is no duplicate detection so if you continually call 
 
 #### GET /discoverJams
-Called by client phones when attempting to discover local jams. Returns a list of all the private ip addresses of master phones hosting jams on the same network (with a matching public ip for the client phone). 
+Called by client phones when attempting to discover local jams. Returns a list of all the name, private ip addresses of master phones hosting jams on the same network (with a matching public ip for the client phone). The pairs are separated by a space and delimited by new lines.
 
 Returns a 200 on success and 400 on database or server error.
