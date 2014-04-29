@@ -18,29 +18,33 @@ router.get("/createJam", function (request, response) {
   var privateIpAddr = url_parts.query.private;
   var name = url_parts.query.name;
   var query_string = "INSERT INTO jams (public_ip, private_ip, name) VALUES ($1, $2, $3)";
-  var query_values = [request.connection.remoteAddress, privateIpAddr, name];
 
-  if (privateIpAddr == null) {
+  console.log("type name: " + typeof name);
+
+  if (typeof privateIpAddr === 'undefined') {
     write_response(response, 400, "BAD REQUEST: private ip address required\n");
     console.log("bad request: no private ip address");
     return;
   }
 
-  if (name != null && name.indexOf(" ") > -1) {
+  if (typeof name !== 'undefined' && name.indexOf(" ") > -1) {
     write_response(response, 400, "BAD REQUEST: name connot contain spaces\n");
     console.log("bad request: bad name");
     return;
   }
 
-  if (name == null) {
+  if (typeof name === 'undefined') {
     name = "Jam-" + privateIpAddr;
   }
+
+  var query_values = [request.connection.remoteAddress, privateIpAddr, name];
 
   client.query(query_string, query_values,
     function(err, result) {
       if(err) {
         write_response(response, 500, "Internal Server Error\n");
         console.log("error creating jam: " + request.connection.remoteAddress + " " + privateIpAddr);
+        console.log("\t " + query_string + query_values);
       }
       else {
         write_response(response, 200, "OK\n");
