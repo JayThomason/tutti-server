@@ -1,12 +1,17 @@
 var http = require('http');
 var pg = require('pg');
 var url = require('url');
-var simpleRouter = require ('node-simple-router');
+var simpleRouter = require('node-simple-router');
+var util = require('util');
 
 var router = simpleRouter();
 var conString = "postgres://postgres_user:password@localhost:5432/my_postgres_db";
 var client = new pg.Client(conString);
 client.connect();
+
+var constants = {
+  'jam_already_exists': 'duplicate key value violates unique constraint'
+}
 
 var write_response = function (response, code, body) {
   response.writeHead(code, {"Content-Type": "text/plain"});
@@ -18,8 +23,6 @@ router.get("/createJam", function (request, response) {
   var privateIpAddr = url_parts.query.private;
   var name = url_parts.query.name;
   var query_string = "INSERT INTO jams (public_ip, private_ip, name) VALUES ($1, $2, $3)";
-
-  console.log("type name: " + typeof name);
 
   if (typeof privateIpAddr === 'undefined') {
     write_response(response, 400, "BAD REQUEST: private ip address required\n");
@@ -41,10 +44,16 @@ router.get("/createJam", function (request, response) {
 
   client.query(query_string, query_values,
     function(err, result) {
-      if(err) {
-        write_response(response, 500, "Internal Server Error\n");
-        console.log("error creating jam: " + request.connection.remoteAddress + " " + privateIpAddr);
-        console.log("\t " + query_string + query_values);
+      if (err) {
+        if (err.message.substring(0, constants.jam_already_exists.length) === constants.jam_already_exists) {
+          write_response(response, 200, "Jam Already Exists");
+          console.log("jam already exists: " + name + " " + request.connection.remoteAddress + " " + privateIpAddr);
+        }
+        else {
+          write_response(response, 500, "Internal Server Error\n");
+          console.log("error creating jam: " + request.connection.remoteAddress + " " + privateIpAddr);
+          console.log("\t " + query_string + query_values);
+        }
       }
       else {
         write_response(response, 200, "OK\n");
