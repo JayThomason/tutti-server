@@ -22,6 +22,8 @@ router.get("/createJam", function (request, response) {
   var url_parts = url.parse(request.url, true);
   var privateIpAddr = url_parts.query.private;
   var name = url_parts.query.name;
+  var ssid = url_parts.query.ssid;
+  var gateway = url_parts.query.gateway;
   var query_string = "INSERT INTO jams (public_ip, private_ip, name) VALUES ($1, $2, $3)";
 
   if (typeof privateIpAddr === 'undefined') {
@@ -41,6 +43,11 @@ router.get("/createJam", function (request, response) {
   }
 
   var query_values = [request.connection.remoteAddress, privateIpAddr, name];
+
+  if (typeof gateway !== 'undefined' && typeof ssid !== 'undefined') {
+    query_string = "INSERT INTO jams (public_ip, private_ip, name, ssid, gateway_ip) VALUES ($1, $2, $3, $4, $5)";
+    query_values = [request.connection.remoteAddress, privateIpAddr, name, ssid, gateway];
+  }
 
   client.query(query_string, query_values,
     function(err, result) {
@@ -63,15 +70,21 @@ router.get("/createJam", function (request, response) {
 });
 
 router.get("/discoverJams", function (request, response) {
+  var url_parts = url.parse(request.url, true);
+  var ssid = url_parts.query.ssid;
+  var gateway = url_parts.query.gateway;
   var rows = [];
 
-//  var query = client.query("SELECT * FROM jams WHERE public_ip = $1",
-//    [request.connection.remoteAddress]);
+  if (typeof gateway === 'undefined' || typeof ssid == 'undefined') {
+    write_response(response, 400, "Bad request: gateway and ssid are required.");
+    return;
+  }
   
-  var query = client.query("SELECT * FROM jams", []);
+  var query = client.query("SELECT * FROM jams WHERE ssid = $1 AND gateway_ip = $2", 
+    [ssid, gateway]);
 
   query.on('error', function() {
-    write_response(response, 400, "Internal Server Error\n");
+    write_response(response, 500, "Internal Server Error\n");
     console.log("error discovering jams");
   });
   
