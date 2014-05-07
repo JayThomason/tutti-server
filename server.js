@@ -20,13 +20,14 @@ var write_response = function (response, code, body) {
 
 router.get("/createJam", function (request, response) {
   var url_parts = url.parse(request.url, true);
-  var privateIpAddr = url_parts.query.private;
+  var private_ip = url_parts.query.private;
+  var public_ip = request.connection.remoteAddress;
   var name = url_parts.query.name;
   var ssid = url_parts.query.ssid;
   var gateway = url_parts.query.gateway;
   var query_string = "INSERT INTO jams (public_ip, private_ip, name) VALUES ($1, $2, $3)";
 
-  if (typeof privateIpAddr === 'undefined') {
+  if (typeof private_ip === 'undefined') {
     write_response(response, 400, "BAD REQUEST: private ip address required\n");
     console.log("bad request: no private ip address");
     return;
@@ -39,32 +40,43 @@ router.get("/createJam", function (request, response) {
   }
 
   if (typeof name === 'undefined') {
-    name = "Jam-" + privateIpAddr;
+    name = "Jam-" + private_ip;
   }
 
-  var query_values = [request.connection.remoteAddress, privateIpAddr, name];
+  var query_values = [public_ip, private_ip, name];
 
   if (typeof gateway !== 'undefined' && typeof ssid !== 'undefined') {
     query_string = "INSERT INTO jams (public_ip, private_ip, name, ssid, gateway_ip) VALUES ($1, $2, $3, $4, $5)";
-    query_values = [request.connection.remoteAddress, privateIpAddr, name, ssid, gateway];
+    query_values = [public_ip, private_ip, name, ssid, gateway];
   }
 
   client.query(query_string, query_values,
     function(err, result) {
       if (err) {
         if (err.message.substring(0, constants.jam_already_exists.length) === constants.jam_already_exists) {
-          write_response(response, 200, "Jam Already Exists");
-          console.log("jam already exists: " + name + " " + request.connection.remoteAddress + " " + privateIpAddr);
+          client.query("UPDATE jams SET name = $1 WHERE public_ip = $2 AND private_ip = $3",
+            [name, public_ip, private_ip],
+            function(err, result) {
+              if (err) {
+                console.log("Error renaming jam.\n");
+                console.log(err);
+                write_response(response, 500, "Internal Server Error\n");
+              }
+              else {
+                write_response(response, 200, "OK\n");
+                console.log("renamed jam: " + name + " " + public_ip + " " + private_ip);
+              }
+            });
         }
         else {
           write_response(response, 500, "Internal Server Error\n");
-          console.log("error creating jam: " + request.connection.remoteAddress + " " + privateIpAddr);
+          console.log("error creating jam: " + public_ip + " " + private_ip);
           console.log("\t " + query_string + query_values);
         }
       }
       else {
         write_response(response, 200, "OK\n");
-        console.log("created jam: " + name + " " + request.connection.remoteAddress + " " + privateIpAddr);
+        console.log("created jam: " + name + " " + public_ip + " " + private_ip);
       }
   });
 });
