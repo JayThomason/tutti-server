@@ -25,7 +25,8 @@ router.get("/createJam", function (request, response) {
   var name = url_parts.query.name;
   var ssid = url_parts.query.ssid;
   var gateway = url_parts.query.gateway;
-  var query_string = "INSERT INTO jams (public_ip, private_ip, name) VALUES ($1, $2, $3)";
+  var query_string = "INSERT INTO jams (public_ip, private_ip, name, timestamp) VALUES ($1, $2, $3, $4)";
+  var time = Date.now();
 
   if (typeof private_ip === 'undefined') {
     write_response(response, 400, "BAD REQUEST: private ip address required\n");
@@ -43,11 +44,11 @@ router.get("/createJam", function (request, response) {
     name = "Jam-" + private_ip;
   }
 
-  var query_values = [public_ip, private_ip, name];
+  var query_values = [public_ip, private_ip, name, time];
 
   if (typeof gateway !== 'undefined' && typeof ssid !== 'undefined') {
-    query_string = "INSERT INTO jams (public_ip, private_ip, name, ssid, gateway_ip) VALUES ($1, $2, $3, $4, $5)";
-    query_values = [public_ip, private_ip, name, ssid, gateway];
+    query_string = "INSERT INTO jams (public_ip, private_ip, name, ssid, gateway_ip, timestamp) VALUES ($1, $2, $3, $4, $5, $6)";
+    query_values = [public_ip, private_ip, name, ssid, gateway, time];
   }
 
   client.query(query_string, query_values,
@@ -113,5 +114,38 @@ router.get("/discoverJams", function (request, response) {
   });
 });
 
+router.get("/keepAlive", function (request, response) {
+  var url_parts = url.parse(request.url, true);
+  var private_ip = url_parts.query.private;
+  var public_ip = request.connection.remoteAddress;
+  var time = Date.now();
+  
+  client.query("UPDATE jams SET timestamp = $1 WHERE public_ip = $2 AND private_ip = $3",
+    [time, public_ip, private_ip],
+    function(err, result) {
+      if (err) {
+        console.log("error updating timestamp.");
+        console.log(err);
+        write_response(response, 500, "Internal Server Error");
+      }
+      else {
+        console.log(time);
+        write_response(response, 200, "OK");
+      }
+    });
+});
+
+setInterval(function() {
+  var time = Date.now() - (120 * 1000);
+  client.query("DELETE FROM jams WHERE timestamp < $1", [time],
+    function(err, result) {
+      if (err) {
+        console.log("error removing old jams.");
+        console.log(error);
+      }
+    }, 120 * 1000);
+});
+
 var server = http.createServer(router);
+
 server.listen(80);
