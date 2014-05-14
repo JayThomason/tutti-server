@@ -28,6 +28,8 @@ router.get("/createJam", function (request, response) {
   var query_string = "INSERT INTO jams (public_ip, private_ip, name, timestamp) VALUES ($1, $2, $3, $4)";
   var time = Date.now();
 
+  console.log("createJam -- name: " + name + " ssid: " + ssid + " gateway: " + gateway);
+
   if (typeof private_ip === 'undefined') {
     write_response(response, 400, "BAD REQUEST: private ip address required\n");
     console.log("bad request: no private ip address");
@@ -88,6 +90,8 @@ router.get("/discoverJams", function (request, response) {
   var gateway = url_parts.query.gateway;
   var rows = [];
 
+  console.log("discoverJam -- ssid: " + ssid + " gateway: " + gateway);
+
   if (typeof gateway === 'undefined' || typeof ssid == 'undefined') {
     write_response(response, 400, "Bad request: gateway and ssid are required.");
     return;
@@ -137,14 +141,15 @@ router.get("/keepAlive", function (request, response) {
 
 setInterval(function() {
   var time = Date.now() - (120 * 1000);
+  console.log("clearing out jams at: " + time);
   client.query("DELETE FROM jams WHERE timestamp < $1", [time],
     function(err, result) {
       if (err) {
         console.log("error removing old jams.");
         console.log(error);
       }
-    }, 120 * 1000);
-});
+    });
+}, 120 * 1000);
 
 var server = http.createServer(router);
 
