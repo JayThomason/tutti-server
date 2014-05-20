@@ -25,7 +25,8 @@ router.get("/createJam", function (request, response) {
   var name = url_parts.query.name;
   var ssid = url_parts.query.ssid;
   var gateway = url_parts.query.gateway;
-  var query_string = "INSERT INTO jams (public_ip, private_ip, name, timestamp) VALUES ($1, $2, $3, $4)";
+  var private_port = url_parts.query.port;
+  var query_string = "INSERT INTO jams (public_ip, private_ip, name, port, timestamp) VALUES ($1, $2, $3, $4, $5)";
   var time = Date.now();
 
   console.log("createJam -- name: " + name + " ssid: " + ssid + " gateway: " + gateway);
@@ -33,6 +34,12 @@ router.get("/createJam", function (request, response) {
   if (typeof private_ip === 'undefined') {
     write_response(response, 400, "BAD REQUEST: private ip address required\n");
     console.log("bad request: no private ip address");
+    return;
+  }
+
+  if (typeof private_port === 'undefined') {
+    write_response(response, 400, "BAD REQUEST: port number required\n");
+    console.log("bad request: no port number");
     return;
   }
 
@@ -46,19 +53,19 @@ router.get("/createJam", function (request, response) {
     name = "Jam-" + private_ip;
   }
 
-  var query_values = [public_ip, private_ip, name, time];
+  var query_values = [public_ip, private_ip, name, private_port, time];
 
   if (typeof gateway !== 'undefined' && typeof ssid !== 'undefined') {
-    query_string = "INSERT INTO jams (public_ip, private_ip, name, ssid, gateway_ip, timestamp) VALUES ($1, $2, $3, $4, $5, $6)";
-    query_values = [public_ip, private_ip, name, ssid, gateway, time];
+    query_string = "INSERT INTO jams (public_ip, private_ip, name, ssid, gateway_ip, port, timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7)";
+    query_values = [public_ip, private_ip, name, ssid, gateway, private_port, time];
   }
 
   client.query(query_string, query_values,
     function(err, result) {
       if (err) {
         if (err.message.substring(0, constants.jam_already_exists.length) === constants.jam_already_exists) {
-          client.query("UPDATE jams SET name = $1 WHERE public_ip = $2 AND private_ip = $3",
-            [name, public_ip, private_ip],
+          client.query("UPDATE jams SET name = $1 AND port = $2 WHERE public_ip = $3 AND private_ip = $4",
+            [name, private_port, public_ip, private_ip],
             function(err, result) {
               if (err) {
                 console.log("Error renaming jam.\n");
@@ -97,8 +104,10 @@ router.get("/discoverJams", function (request, response) {
     return;
   }
   
-  var query = client.query("SELECT * FROM jams WHERE ssid = $1 AND gateway_ip = $2", 
-    [ssid, gateway]);
+  //var query = client.query("SELECT * FROM jams WHERE ssid = $1 AND gateway_ip = $2", 
+  var query = client.query("SELECT * FROM jams WHERE ssid = $1", 
+    //[ssid, gateway]);
+    [ssid]);
 
   query.on('error', function() {
     write_response(response, 500, "Internal Server Error\n");
@@ -112,7 +121,7 @@ router.get("/discoverJams", function (request, response) {
   query.on('end', function() {
     response.writeHead(200, {"Content-Type": "text/plain"});
     for (var i = 0; i < rows.length; ++i) {
-      response.write(rows[i].name + " " + rows[i].private_ip + "\n");
+      response.write(rows[i].name + " " + rows[i].port + " " + rows[i].private_ip + "\n");
     }
     response.end();
   });
