@@ -29,7 +29,7 @@ router.get("/createJam", function (request, response) {
   var query_string = "INSERT INTO jams (public_ip, private_ip, name, port, timestamp) VALUES ($1, $2, $3, $4, $5)";
   var time = Date.now();
 
-  console.log("createJam -- name: " + name + " ssid: " + ssid + " gateway: " + gateway);
+  console.log("createJam -- name: " + name + " ssid: " + ssid + " gateway: " + gateway + " port: " + private_port);
 
   if (typeof private_ip === 'undefined') {
     write_response(response, 400, "BAD REQUEST: private ip address required\n");
@@ -64,7 +64,7 @@ router.get("/createJam", function (request, response) {
     function(err, result) {
       if (err) {
         if (err.message.substring(0, constants.jam_already_exists.length) === constants.jam_already_exists) {
-          client.query("UPDATE jams SET name = $1 AND port = $2 WHERE public_ip = $3 AND private_ip = $4",
+          client.query("UPDATE jams SET name = $1, port = $2 WHERE public_ip = $3 AND private_ip = $4",
             [name, private_port, public_ip, private_ip],
             function(err, result) {
               if (err) {
