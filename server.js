@@ -30,8 +30,6 @@ router.post("/log", function (request, response) {
 
     var jam = jam_list[i];
 
-    console.log(jam);
-
     if (error) {
       write_response(response, 500, "error processing jam");
       break;
@@ -40,27 +38,33 @@ router.post("/log", function (request, response) {
     var jam_length = jam.length;
     var jam_num_users = jam.num_users;
     var jam_num_songs = jam.num_songs;
+    var jam_start_time = jam.start_time;
     
     if (typeof(jam_length) === 'undefined' 
         || typeof(jam_num_users) === 'undefined' 
-        || typeof(jam_num_songs) === 'undefined') {
+        || typeof(jam_num_songs) === 'undefined'
+        || typeof(jam_start_time) === 'undefined') {
       console.log("bad request -- jam length, num users, or num songs is missing from jam in jam_list\n");
       write_response(response, 400, "bad request");
       return;
     }
 
-    client.query("INSERT INTO log (length, num_users, num_songs) VALUES ($1, $2, $3)",
-      [jam_length, jam_num_users, jam_num_songs],
+    client.query("INSERT INTO log (length, num_users, num_songs, start_time) VALUES ($1, $2, $3, $4)",
+      [jam_length, jam_num_users, jam_num_songs, jam_start_time],
       function(err, result) {
         if (err) {
           error = true;
+
           console.log("error logging jams");
+          console.log(err);
           write_response(response, 500, "error processing jam");
         }
         else {
-          ++jams_processed;
-          if (jams_processed == jam_list_len) {
-            write_response(response, 200, "OK");
+          if (!error) {
+            ++jams_processed;
+            if (jams_processed == jam_list_len) {
+              write_response(response, 200, "OK");
+            }
           }
         }
     });
